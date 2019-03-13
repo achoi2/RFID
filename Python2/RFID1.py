@@ -97,7 +97,10 @@ def cmdloop(cardID):
 		elif cmd[0] == "dump":
 			# This is the default key for authentication
 			key = [0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]
-			mfrc.MFRC522_Dump_Str(key,cardID)
+			while(scanCard() != cardID):
+                print cardID 
+                time.sleep(1)
+            mfrc.MFRC522_Dump_Str(key,cardID)
 			
 		elif cmd[0] == "write":
 			blockAddr = int(cmd[1])
@@ -113,7 +116,10 @@ def cmdloop(cardID):
 					data+=[0]*(16-len(data))
 			# This is the default key for authentication
 			key = [0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]			
-			# Authenticate
+			while(scanCard() != cardID):
+                print cardID 
+                time.sleep(1)
+            # Authenticate
 			status = mfrc.MFRC522_Auth(mfrc.PICC_AUTHENT1A, blockAddr, key, cardID)
 			# Check if authenticated
 			if status == mfrc.MI_OK:
@@ -133,7 +139,10 @@ def cmdloop(cardID):
 			data = [0]*16
 			# This is the default key for authentication
 			key = [0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]			
-			# Authenticate
+			while(scanCard() != cardID):
+                print cardID 
+                time.sleep(1)
+            # Authenticate
 			status = mfrc.MFRC522_Auth(mfrc.PICC_AUTHENT1A, blockAddr, key, cardID)
 			# Check if authenticated
 			if status == mfrc.MI_OK:
