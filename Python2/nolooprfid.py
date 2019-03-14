@@ -6,11 +6,11 @@
 # modification: 2018/09/08
 ########################################################################
 import RPi.GPIO as GPIO
-import MFRC522
+import MFRC522A
 import time
 
 # Create an object of the class MFRC522
-mfrc = MFRC522.MFRC522()
+mfrc = MFRC522A.MFRC522()
 
 defaultKey = [0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]
 
@@ -22,7 +22,18 @@ def setup():
 	print "Program is starting ... "	
 	print "Press Ctrl-C to exit."
 	pass
-	
+
+def scanCard():
+	(status,TagType) = mfrc.MFRC522_Request(mfrc.PICC_REQIDL)
+	if status == mfrc.MI_OK:
+		print "Card detected"
+	(status,uid) = mfrc.MFRC522_Anticoll()
+	if status == mfrc.MI_OK:
+		print "Card UID: "+ str(map(hex,uid))
+		if mfrc.MFRC522_SelectTag(uid) == 0:
+			print "MFRC522_SelectTag Failed!"
+	return uid
+
 def loop():
 	global mfrc
 	while(True):
@@ -31,7 +42,7 @@ def loop():
 		print inCmd
 		if (inCmd == "scan"):
 			print "Scanning ... "
-			mfrc = MFRC522.MFRC522()
+			mfrc = MFRC522A.MFRC522()
 			isScan = True
 			while isScan:
 				# Scan for cards    
@@ -56,13 +67,15 @@ def loop():
 			print "\tUnknown command\n"+"\tscan:scan card and dump\n"+"\tquit:exit program\n"
 				
 def cmdloop(cardID):
-	pass
+	global mfrc
+	#pass
 	while(True):
 		dis_ConmandLine()
-		dis_CardID(cardID)
+		#dis_CardID(cardID)
 		inCmd = raw_input()
 		cmd = inCmd.split(" ")
 		print cmd
+		mfrc = MFRC522A.MFRC522()
 		if(cmd[0] == "read"):
 			blockAddr = int(cmd[1])
 			if((blockAddr<0) or (blockAddr>63)):
@@ -70,11 +83,21 @@ def cmdloop(cardID):
 			# This is the default key for authentication
 			#key = [0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]			
 			key = defaultKey
+
+			testID = cardID
+			cardID = scanCard()
+			while(testID == cardID):
+				cardID = scanCard()
+				print cardID
+				time.sleep(1)
+
 			# Authenticate
 			status = mfrc.MFRC522_Auth(mfrc.PICC_AUTHENT1A, blockAddr, key, cardID)
 			# Check if authenticated
 			if status == mfrc.MI_OK:
-				mfrc.MFRC522_Readstr(blockAddr)
+				(blockStr,dataStr) = mfrc.MFRC522_Readstr(blockAddr)
+				if(blockStr != None):
+					print("[{\"bn\":\"test\",\"n\":\""+blockStr+"\",\"u\":\"read\",\"v\":\""+dataStr+"\"}]")
 			else:
 				print "Authentication error"
 				return 0
@@ -83,6 +106,11 @@ def cmdloop(cardID):
 			# This is the default key for authentication
 			#key = [0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]
 			key = defaultKey
+
+			while(scanCard() != cardID):
+				print cardID
+				time.sleep(1)
+
 			mfrc.MFRC522_Dump_Str(key,cardID)
 			
 		elif cmd[0] == "write":
@@ -92,7 +120,7 @@ def cmdloop(cardID):
 			data = [0]*16
 			if(len(cmd)<2):
 				data = [0]*16
-			else:	
+			else:
 				data = cmd[2][0:17]
 				data = map(ord,data)
 				if len(data)<16:
@@ -100,15 +128,22 @@ def cmdloop(cardID):
 			# This is the default key for authentication
 			#key = [0xFF,0xFF,0xFF,0xFF,0xFF,0xFF]			
 			key = defaultKey
+
+			while(scanCard() == cardID):
+				print cardID
+				time.sleep(1)
+
 			# Authenticate
 			status = mfrc.MFRC522_Auth(mfrc.PICC_AUTHENT1A, blockAddr, key, cardID)
 			# Check if authenticated
 			if status == mfrc.MI_OK:
 				print "Before writing , The data in block %d  is: "%(blockAddr)
-				mfrc.MFRC522_Readstr(blockAddr)
+				(blockStr,dataStr) = mfrc.MFRC522_Readstr(blockAddr)
 				mfrc.MFRC522_Write(blockAddr, data)
+				print("[{\"bn\":\"test\",\"n\":\""+blockStr+"\",\"u\":\"write\",\"v\":\""+dataStr+"\"}]")
 				print "After written , The data in block %d  is: "%(blockAddr)
-				mfrc.MFRC522_Readstr(blockAddr)
+				(blockStr,dataStr) = mfrc.MFRC522_Readstr(blockAddr)
+				print("[{\"bn\":\"test\",\"n\":\""+blockStr+"\",\"u\":\"data\",\"v\":\""+dataStr+"\"}]")
 			else:
 				print "Authentication error"
 				return 0
@@ -144,7 +179,8 @@ def destroy():
 if __name__ == "__main__":
 	setup()
 	try:
-		loop()
+		#loop()
+		cmdloop([])
 	except KeyboardInterrupt:  # Ctrl+C captured, exit
 		destroy()
  
